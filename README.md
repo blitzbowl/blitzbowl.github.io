@@ -19,21 +19,31 @@ the Express server exists only so Railway has something to boot.
 
 ---
 
-## Deploy to Railway
+## Deploy
 
-Same shape as the Hegenes dashboard, minus the Python.
+### GitHub Pages (what's live)
 
-```bash
-gh repo create blitz-bowl --private --source=. --remote=origin --push
-```
+`.github/workflows/pages.yml` uploads `public/` on every push to `main`. The repo is
+public because Pages on a private repo needs a paid plan.
 
-Then in Railway: **New Project → Deploy from GitHub repo → blitz-bowl**.
+    https://grantsather.github.io/blitz-bowl/
 
-Nixpacks detects Node from `package.json` and runs `npm start`. `railway.json`
-pins the start command and points the healthcheck at `/healthz`. Nothing else to
-configure — no env vars, no database, no build command.
+There's no server on Pages, so `public/config.js` carries the Supabase URL and anon
+key as a committed file. That's fine: the anon key is a publishable key, and the chat
+tables grant it nothing directly (see **Team chat** below).
 
-Custom domain goes under **Settings → Networking → Custom Domain**.
+### Railway (still wired, unused)
+
+`server.js`, `Procfile` and `railway.json` are intact. **New Project → Deploy from
+GitHub repo → blitz-bowl**; Nixpacks detects Node and runs `npm start`, with the
+healthcheck at `/healthz`. Set `SUPABASE_URL` and `SUPABASE_ANON_KEY` under Variables
+and `server.js` serves them at `/config.json`.
+
+The two paths don't fight: `config.js` only sets `window.BB_CONFIG` when its values
+are non-empty, and the game falls through to `/config.json` when it isn't set.
+
+Custom domain: Pages under **Settings → Pages**, Railway under **Settings →
+Networking**.
 
 ---
 
@@ -126,6 +136,32 @@ Keep the `null` guards. They're what lets the same file run in both places.
 
 Presence ("coaches online") maps to Supabase Realtime presence, but it's cosmetic —
 skip it unless you want it.
+
+---
+
+## Team chat
+
+`supabase/chat.sql` — one table, two functions, one room per code.
+
+The room code is real access control, not a filter. `bb_messages` has RLS on with
+**no policies**, so the anon key cannot read or write a single row of it. Everything
+goes through `bb_history(code)` and `bb_post(code, author, body, client)`, which are
+`security definer` and demand the code. Without that, anyone holding the anon key —
+which is sitting in `config.js` in a public repo — could read every room.
+
+Live delivery is a Realtime **broadcast** channel named `bb-chat-<CODE>`; channel
+names aren't enumerable, so the code gates that too. A poll every 8s backstops anyone
+whose socket dropped. `bb_post` caps messages at 12/minute/device and trims each room
+to its last 300.
+
+To change the room code everyone uses, just tell them a different one — there's no
+room registry. The last code used is remembered in `localStorage` under `bb_room`.
+
+| Want to change | Where |
+|---|---|
+| Flood limit, message length, room history depth | `bb_post` in `supabase/chat.sql` |
+| Who appears as the author | `chatSend()` — currently `S.team` |
+| Bubble styling | `.msg` / `.chatbar` in `index.html` |
 
 ---
 

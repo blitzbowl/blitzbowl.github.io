@@ -10,6 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,500;0,600;0,700;0,800;1,600;1,700;1,800&family=Barlow:wght@400;500;600&display=swap">
 <style>
   :root{
@@ -122,6 +123,7 @@
   .tile.t-shop::before{background:#C05CFF}
   .tile.t-roster::before{background:var(--chalk)}
   .tile.t-ranks::before{background:var(--gold)}
+  .tile.t-chat::before{background:#FF8A3D}
   .tile .h{font-family:var(--display); font-weight:800; font-style:italic; letter-spacing:-.005em; font-size:15px; line-height:1.15}
   .tile .d{font-size:12px; color:var(--muted); line-height:1.35}
   .tile .badge2{font-family:"Barlow Condensed",sans-serif; font-weight:700; font-size:11px;
@@ -298,6 +300,22 @@
   @keyframes pop{from{opacity:0; transform:translateY(8px)}to{opacity:1; transform:none}}
 
   .empty{color:var(--dim); font-size:13px; text-align:center; padding:18px 0}
+  /* ---- team chat ---- */
+  .chatwrap{flex:1; min-height:0; display:flex; flex-direction:column}
+  .chatlog{flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch;
+    display:flex; flex-direction:column; gap:9px; padding:12px 2px 14px}
+  .msg{max-width:86%; align-self:flex-start; background:var(--panel);
+    border:1px solid var(--edge); border-radius:11px; padding:8px 11px}
+  .msg.mine{align-self:flex-end; background:var(--panel-3); border-color:var(--edge-2)}
+  .msg .who{font-family:"Barlow Condensed",sans-serif; font-weight:700; font-size:11.5px;
+    letter-spacing:.07em; text-transform:uppercase; color:var(--brand); margin-bottom:2px}
+  .msg.mine .who{color:var(--silver)}
+  .msg .txt{font-size:13.5px; line-height:1.4; white-space:pre-wrap; overflow-wrap:anywhere}
+  .msg .at{font-size:10.5px; color:var(--dim); margin-top:3px}
+  .chatbar{display:flex; gap:8px; align-items:center; padding:10px 0 14px; border-top:1px solid var(--edge)}
+  .chatbar input[type=text]{flex:1; text-transform:none; letter-spacing:0;
+    font-family:"Barlow","Helvetica Neue",Arial,sans-serif; font-weight:400; font-size:16px}
+  .chatbar .btn{flex:0 0 auto}
   .online-dot{display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--good); margin-right:5px}
 
   @media (max-width:430px){
@@ -368,6 +386,11 @@
         <span class="d">Face a real player's team. Big RP.</span>
         <span class="badge2" id="onlineBadge">Locked</span>
       </button>
+      <button class="tile t-chat" id="goChat" type="button">
+        <span class="h">TEAM CHAT</span>
+        <span class="d">Talk to your teammates between games.</span>
+        <span class="badge2" id="chatBadge">Room code</span>
+      </button>
       <button class="tile t-ranks" id="goRanks" type="button">
         <span class="h">RANKS</span>
         <span class="d">Leaderboard and how far to the next tier.</span>
@@ -383,6 +406,38 @@
     <div class="row" style="justify-content:space-between">
       <span class="eyebrow" id="recordLine">0-0</span>
       <button class="btn ghost sm" id="resetAll" type="button">Reset franchise</button>
+    </div>
+  </section>
+
+  <!-- ===== TEAM CHAT ===== -->
+  <section id="s-chat" class="screen">
+    <div class="topbar">
+      <h2>Team chat</h2>
+      <span class="eyebrow" id="chatRoomTag"></span>
+      <button class="btn sm" id="chatLeave" type="button" hidden>Leave</button>
+      <button class="btn sm" data-back type="button">Back</button>
+    </div>
+
+    <div class="scroll" id="chatGate" style="flex:1">
+      <div class="block">
+        <div class="eyebrow">Room code</div>
+        <p class="lede" style="margin-top:6px">Everyone who types the same code lands in the
+          same room. Pick one, tell your teammates, and keep it to yourselves &mdash; the code
+          is the only thing standing between your room and the rest of the internet.</p>
+        <input type="text" id="chatCode" maxlength="24" placeholder="612BLITZ"
+               autocomplete="off" autocapitalize="characters" spellcheck="false" style="margin-top:12px">
+        <button class="btn primary" id="chatJoin" type="button" style="margin-top:10px; width:100%">Join room</button>
+        <div class="empty" id="chatGateMsg" hidden></div>
+      </div>
+    </div>
+
+    <div class="chatwrap" id="chatRoom" hidden>
+      <div class="chatlog" id="chatLog"></div>
+      <div class="chatbar">
+        <input type="text" id="chatMsg" maxlength="400" placeholder="Say something"
+               autocomplete="off" enterkeyhint="send">
+        <button class="btn primary" id="chatSend" type="button">Send</button>
+      </div>
     </div>
   </section>
 
@@ -895,6 +950,7 @@ function paintHome(){
   $("#goOnline").disabled = !un;
   $("#ranksBadge").textContent = pr.next ? pr.need+" RP to "+pr.next.name : "Top of the ladder";
   $("#rosterBadge").textContent = S.lineup.filter(Boolean).length+" / 11 set";
+  $("#chatBadge").textContent = CHAT.room ? CHAT.room : (BE.sb ? "Room code" : "Offline");
   $("#recordLine").textContent = S.wins+"-"+S.losses+" \u00B7 coach "+S.coach;
   const qp=$("#quickPlayDesc");
   if(qp){
@@ -930,6 +986,138 @@ $("#rosterNext").addEventListener("click",()=>{
 });
 $("#goRoster").addEventListener("click",()=>{ paintRoster(); show("#s-roster"); });
 $("#goRanks").addEventListener("click",()=>{ paintRanks(); show("#s-ranks"); refreshLeaderboard(); });
+
+/* ============================================================
+   TEAM CHAT
+   One room per code. Live delivery rides a Realtime broadcast
+   channel named after the code; history and persistence go through
+   bb_history / bb_post, the only two things the anon key may call.
+   A poll every 8s covers anyone whose broadcast socket dropped.
+   ============================================================ */
+const CHAT = { room:null, ch:null, poll:0, seen:new Set(), sending:false };
+
+const escHtml = t => String(t).replace(/[&<>"\']/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","\'":"&#39;"}[c]));
+const cleanCode = v => String(v||"").toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,24);
+const chatTime = ts =>
+  (ts ? new Date(ts) : new Date()).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"});
+
+function chatNote(msg, bad){
+  const el=$("#chatGateMsg"); if(!el) return;
+  el.hidden = !msg; el.textContent = msg || "";
+  el.style.color = bad ? "var(--bad)" : "var(--dim)";
+}
+
+function appendMsg(m){
+  if(!m || !m.body) return;
+  const key = m.id != null ? "i"+m.id : "t"+m.client_id+"|"+m.created_at+"|"+m.body;
+  if(CHAT.seen.has(key)) return;
+  CHAT.seen.add(key);
+  const log=$("#chatLog"); if(!log) return;
+  const stuck = log.scrollHeight - log.scrollTop - log.clientHeight < 60;
+  const d=document.createElement("div");
+  d.className = "msg" + (m.client_id && S && m.client_id===S.cid ? " mine" : "");
+  d.innerHTML = '<div class="who">'+escHtml(m.author||"COACH")+'</div>'+
+                '<div class="txt">'+escHtml(m.body)+'</div>'+
+                '<div class="at">'+escHtml(chatTime(m.created_at))+'</div>';
+  log.appendChild(d);
+  if(stuck) log.scrollTop = log.scrollHeight;
+}
+
+async function chatHistory(){
+  if(!BE.sb || !CHAT.room) return;
+  try{
+    const r = await BE.sb.rpc("bb_history", {p_room:CHAT.room, p_limit:80});
+    if(r.error) throw r.error;
+    (r.data||[]).slice().sort((a,b)=>Number(a.id)-Number(b.id)).forEach(appendMsg);
+  }catch(e){}
+}
+
+async function chatJoin(code){
+  code = cleanCode(code);
+  if(code.length < 4){ chatNote("Room codes are at least 4 letters or numbers.", true); return; }
+  if(!BE.sb){ chatNote("Chat is offline on this build \u2014 no backend configured.", true); return; }
+
+  chatNote("Joining\u2026");
+  CHAT.room = code; CHAT.seen.clear();
+  $("#chatLog").innerHTML = "";
+  try{ localStorage.setItem("bb_room", code); }catch(e){}
+
+  await chatHistory();
+  $("#chatLog").scrollTop = $("#chatLog").scrollHeight;
+
+  try{
+    if(CHAT.ch) await BE.sb.removeChannel(CHAT.ch);
+    CHAT.ch = BE.sb.channel("bb-chat-"+code, {config:{broadcast:{self:false}}});
+    CHAT.ch.on("broadcast", {event:"msg"}, p => appendMsg((p && p.payload) || null));
+    CHAT.ch.subscribe();
+  }catch(e){ CHAT.ch = null; }
+
+  clearInterval(CHAT.poll);
+  CHAT.poll = setInterval(chatHistory, 8000);
+
+  chatNote("");
+  $("#chatGate").hidden = true;
+  $("#chatRoom").hidden = false;
+  $("#chatLeave").hidden = false;
+  $("#chatRoomTag").textContent = code;
+  paintHome();
+  $("#chatMsg").focus();
+}
+
+async function chatLeaveRoom(){
+  clearInterval(CHAT.poll); CHAT.poll = 0;
+  try{ if(CHAT.ch) await BE.sb.removeChannel(CHAT.ch); }catch(e){}
+  CHAT.ch = null; CHAT.room = null; CHAT.seen.clear();
+  try{ localStorage.removeItem("bb_room"); }catch(e){}
+  $("#chatLog").innerHTML = "";
+  $("#chatRoom").hidden = true;
+  $("#chatGate").hidden = false;
+  $("#chatLeave").hidden = true;
+  $("#chatRoomTag").textContent = "";
+  chatNote("");
+  paintHome();
+}
+
+async function chatSend(){
+  const box=$("#chatMsg");
+  const body = (box.value||"").trim();
+  if(!body || CHAT.sending || !CHAT.room || !BE.sb) return;
+  const author = (S && S.team) ? S.team : "COACH";
+  const cid = S ? S.cid : "anon";
+  CHAT.sending = true; $("#chatSend").disabled = true;
+  try{
+    const r = await BE.sb.rpc("bb_post",
+      {p_room:CHAT.room, p_author:author, p_body:body, p_client:cid});
+    if(r.error) throw r.error;
+    box.value = "";
+    const row = {id:r.data, author, body, client_id:cid, created_at:new Date().toISOString()};
+    appendMsg(row);
+    if(CHAT.ch){ try{ await CHAT.ch.send({type:"broadcast", event:"msg", payload:row}); }catch(e){} }
+  }catch(e){
+    toast(/slow down/i.test(e && e.message || "")
+      ? "Easy \u2014 too many messages at once."
+      : "Message didn\u2019t send. Try again.");
+  }finally{
+    CHAT.sending = false; $("#chatSend").disabled = false; box.focus();
+  }
+}
+
+$("#goChat").addEventListener("click", ()=>{
+  show("#s-chat");
+  if(CHAT.room) return;
+  let saved=""; try{ saved = localStorage.getItem("bb_room") || ""; }catch(e){}
+  if(saved){ $("#chatCode").value = saved; chatJoin(saved); return; }
+  if(!BE.sb) chatNote("Chat is offline on this build \u2014 no backend configured.", true);
+  $("#chatCode").focus();
+});
+$("#chatJoin").addEventListener("click", ()=>chatJoin($("#chatCode").value));
+$("#chatCode").addEventListener("keydown", e=>{ if(e.key==="Enter") chatJoin($("#chatCode").value); });
+$("#chatLeave").addEventListener("click", chatLeaveRoom);
+$("#chatSend").addEventListener("click", chatSend);
+$("#chatMsg").addEventListener("keydown", e=>{
+  if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); chatSend(); }
+});
 $("#goGames").addEventListener("click",()=>startGame("GAME"));
 $("#goOnline").addEventListener("click",()=>startOnline());
 $("#resetAll").addEventListener("click",()=>{
