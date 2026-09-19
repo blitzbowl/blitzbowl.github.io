@@ -172,6 +172,35 @@ room registry. The last code used is remembered in `localStorage` under `bb_room
 
 ---
 
+## Calling a play
+
+Picking a play doesn't snap it. The first tap lays the routes on the field as dashed
+lines and highlights the card; tapping that same play again snaps. Tapping a
+*different* play just switches the preview. Keys `1`-`5` follow the same two-press
+rule.
+
+The mechanism is `G.picked` plus `selectPlay()`. `drawPlayers()` already drew routes
+during `PRESNAP` from `w.pts`, so the only real change was that `newPlay()` now blanks
+`w.pts` after `layRoutes()` -- positions are set, lines stay hidden until you choose.
+
+## Challenges and difficulty
+
+The 20 challenges are all about yards and touchdowns -- gain ladders (10/20/30/40/50/60
+on one play), touchdown ladders, consecutive 10+ plays, per-drill totals. Nothing
+rewards merely snapping the ball. An interception costs `INT_COST` points (15), floored
+at zero, so a pick is the one thing that moves the wallet backwards.
+
+Difficulty was raised a notch in five places: `cthRadius` (smaller catch window),
+`accScatter` (more wobble), `T.dbBase`/`T.dbScale` and the `DIFF` table (faster
+coverage), `T.rushSpeed` (less pocket time), and the interception radius in
+`resolveCatch`. Worth keeping in mind when tuning further: at Bronze a top-roll DB runs
+7.77 yd/s against an 80-speed receiver's 8.06, so speed still beats coverage on the
+lowest tier. From Silver up it doesn't, and you have to win with route breaks -- which
+is what `steer()`'s momentum model is for. If you push `DIFF[0].db` much past 0.95 you
+take that escape hatch away from the easiest difficulty.
+
+---
+
 ## Saves
 
 Progress lives in `localStorage` under `pg_save` — team, colors, roster, lineup,

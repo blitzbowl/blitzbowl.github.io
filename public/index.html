@@ -256,6 +256,9 @@
   .play{background:var(--panel); border:1px solid var(--edge); border-radius:8px; padding:8px 10px;
     cursor:pointer; text-align:left; color:inherit; font:inherit; display:flex; align-items:center; gap:9px}
   .play:hover{background:var(--panel-2); border-color:var(--edge-2)}
+  .play.picked{background:var(--panel-3); border-color:var(--brand); box-shadow:0 0 0 1px var(--brand) inset}
+  .play.picked .k{background:var(--brand); color:#08325F}
+  .play.picked .ds{color:var(--brand)}
   .play:focus-visible{outline:2px solid var(--brand); outline-offset:2px}
   .play .k{font-family:"Barlow Condensed",sans-serif; font-weight:700; font-size:12px; width:19px; height:19px;
     flex:none; display:grid; place-items:center; border-radius:4px; background:var(--edge); color:var(--chalk)}
@@ -562,11 +565,11 @@ const TIERS = [
 ];
 /* how much nastier the bots get per tier */
 const DIFF = [
-  {db:0.90, shed:1.10, drive:-0.06, label:"Rookie bots"},
-  {db:0.96, shed:1.00, drive:0.02,  label:"Sharper bots"},
-  {db:1.02, shed:0.92, drive:0.10,  label:"Tough bots"},
-  {db:1.08, shed:0.84, drive:0.18,  label:"Elite bots"},
-  {db:1.15, shed:0.76, drive:0.26,  label:"Unreal bots"}
+  {db:0.93, shed:1.07, drive:-0.04, label:"Rookie bots"},
+  {db:0.99, shed:0.97, drive:0.04,  label:"Sharper bots"},
+  {db:1.05, shed:0.89, drive:0.12,  label:"Tough bots"},
+  {db:1.11, shed:0.81, drive:0.20,  label:"Elite bots"},
+  {db:1.18, shed:0.73, drive:0.28,  label:"Unreal bots"}
 ];
 
 const ROUTES = {
@@ -594,32 +597,33 @@ const PLAYBOOK = [
 
 const BRAND="#2E86E0", BRAND_LIGHT="#8FC4F5", CARRIER="#EEF3F8";
 const FW = 53.3, FL = 120, GOAL_THEM = 110;
-const T = {qbSpeed:6.4, rushSpeed:7.3, olSpeed:6.7, dbBase:6.3, dbScale:1.9, pursuitBase:6.6, pursuitScale:1.5, dropback:0.85};
+const T = {qbSpeed:6.4, rushSpeed:7.45, olSpeed:6.7, dbBase:6.4, dbScale:1.95, pursuitBase:6.6, pursuitScale:1.5, dropback:0.85};
 
 /* ============================================================
    CHALLENGES — 20 of them, each worth different points
    ============================================================ */
+const INT_COST = 15;
 const CHALLENGES = [
-  {id:"c1",  n:"First Snap",     d:"Complete one pass.",                         p:5,  f:(e,S)=>e.type==="complete"},
-  {id:"c2",  n:"Chain Gang",     d:"Pick up a first down.",                      p:5,  f:(e,S)=>e.firstDown},
-  {id:"c3",  n:"Pay Dirt",       d:"Score a touchdown.",                         p:10, f:(e,S)=>e.type==="td"},
-  {id:"c4",  n:"Quick Release",  d:"Complete a pass within 2 seconds.",          p:10, f:(e,S)=>e.caught&&e.throwT<2},
-  {id:"c5",  n:"Deep Shot",      d:"Complete a pass 25+ yards through the air.", p:15, f:(e,S)=>e.caught&&e.airY>=25},
-  {id:"c6",  n:"Scramble Drill", d:"Run for 10+ yards with your QB.",            p:10, f:(e,S)=>e.qbRun&&e.yards>=10},
-  {id:"c7",  n:"Chunk Play",     d:"Gain 35+ yards on one play.",                p:20, f:(e,S)=>e.yards>=35},
-  {id:"c8",  n:"Juke Box",       d:"Break two tackles on one play.",             p:15, f:(e,S)=>e.broke>=2},
-  {id:"c9",  n:"Sideline Work",  d:"Catch one outside the hash marks.",          p:10, f:(e,S)=>e.caught&&(e.catchFx<13||e.catchFx>40)},
-  {id:"c10", n:"In Rhythm",      d:"Four completions in a row.",                 p:15, f:(e,S)=>S.streak>=4},
-  {id:"c11", n:"Red Zone",       d:"Score from inside the 10.",                  p:10, f:(e,S)=>e.type==="td"&&e.losWas>=100},
-  {id:"c12", n:"Fourth Down",    d:"Convert on 4th down.",                       p:20, f:(e,S)=>e.downWas===4&&(e.firstDown||e.type==="td")},
-  {id:"c13", n:"Iron Pocket",    d:"Hold it 4+ seconds, then complete.",         p:15, f:(e,S)=>e.caught&&e.throwT>=4},
-  {id:"c14", n:"House Call",     d:"Score a 40+ yard touchdown.",                p:25, f:(e,S)=>e.type==="td"&&e.yards>=40},
-  {id:"c15", n:"Air Raid",       d:"150 passing yards in one drill.",            p:25, f:(e,S)=>S.yds>=150},
-  {id:"c16", n:"Clean Sheet",    d:"8 completions, zero picks, one drill.",      p:25, f:(e,S)=>S.cmp>=8&&S.ints===0},
-  {id:"c17", n:"Hat Trick",      d:"Three touchdowns in one drill.",             p:25, f:(e,S)=>S.tds>=3},
-  {id:"c18", n:"Untouched",      d:"20+ yard TD without using a juke.",          p:20, f:(e,S)=>e.type==="td"&&e.yards>=20&&!e.usedJuke},
-  {id:"c19", n:"Two-Minute",     d:"Score within 40 seconds of starting.",       p:20, f:(e,S)=>e.type==="td"&&S.t<=40},
-  {id:"c20", n:"The Gauntlet",   d:"Five touchdowns in one drill.",              p:30, f:(e,S)=>S.tds>=5}
+  {id:"g10",   n:"Move the Chains", d:"Gain 10+ yards on one play.",        p:5,  f:(e,S)=>e.yards>=10},
+  {id:"g20",   n:"Chunk Play",      d:"Gain 20+ yards on one play.",        p:10, f:(e,S)=>e.yards>=20},
+  {id:"g30",   n:"Explosive",       d:"Gain 30+ yards on one play.",        p:15, f:(e,S)=>e.yards>=30},
+  {id:"g40",   n:"Take the Top Off",d:"Gain 40+ yards on one play.",        p:20, f:(e,S)=>e.yards>=40},
+  {id:"g50",   n:"Gone",            d:"Gain 50+ yards on one play.",        p:25, f:(e,S)=>e.yards>=50},
+  {id:"g60",   n:"Track Meet",      d:"Gain 60+ yards on one play.",        p:35, f:(e,S)=>e.yards>=60},
+  {id:"td1",   n:"Pay Dirt",        d:"Score a touchdown.",                 p:10, f:(e,S)=>e.type==="td"},
+  {id:"td20",  n:"Finish It",       d:"Score a 20+ yard touchdown.",        p:15, f:(e,S)=>e.type==="td"&&e.yards>=20},
+  {id:"td40",  n:"House Call",      d:"Score a 40+ yard touchdown.",        p:25, f:(e,S)=>e.type==="td"&&e.yards>=40},
+  {id:"td60",  n:"Coast to Coast",  d:"Score a 60+ yard touchdown.",        p:40, f:(e,S)=>e.type==="td"&&e.yards>=60},
+  {id:"ch2",   n:"Back to Back",    d:"Two 10+ yard plays in a row.",       p:15, f:(e,S)=>S.chain10>=2},
+  {id:"ch4",   n:"Rolling",         d:"Four 10+ yard plays in a row.",      p:25, f:(e,S)=>S.chain10>=4},
+  {id:"b20x3", n:"Big Day",         d:"Three 20+ yard plays in one drill.", p:20, f:(e,S)=>S.big20>=3},
+  {id:"b30x3", n:"Highlight Reel",  d:"Three 30+ yard plays in one drill.", p:30, f:(e,S)=>S.big30>=3},
+  {id:"td2",   n:"Double Up",       d:"Two touchdowns in one drill.",       p:20, f:(e,S)=>S.tds>=2},
+  {id:"td3",   n:"Hat Trick",       d:"Three touchdowns in one drill.",     p:25, f:(e,S)=>S.tds>=3},
+  {id:"td5",   n:"The Gauntlet",    d:"Five touchdowns in one drill.",      p:40, f:(e,S)=>S.tds>=5},
+  {id:"y200",  n:"Two Hundred",     d:"200 yards in one drill.",            p:20, f:(e,S)=>S.yds>=200},
+  {id:"y400",  n:"Four Hundred",    d:"400 yards in one drill.",            p:35, f:(e,S)=>S.yds>=400},
+  {id:"clean", n:"Ball Security",   d:"Three TDs in a drill, zero picks.",  p:35, f:(e,S)=>S.tds>=3&&S.ints===0}
 ];
 
 /* ============================================================
@@ -754,9 +758,9 @@ const shownStars = p => (p.flag==="hidden" && !p.revealed) ? "?" : p.stars;
 const priceOf = p => (p.flag==="hidden") ? 120
   : Math.max(15, Math.round(Math.pow(Math.max(1,p.ovr-54),1.72)/2.1));
 const armToBall = a => 17+(a/100)*10.5;
-const accScatter = a => (100-a)/100*3.4;
+const accScatter = a => (100-a)/100*3.7;
 const spdYds = s => 5.9+(s/100)*2.7;
-const cthRadius = c => 1.9+(c/100)*1.7;
+const cthRadius = c => 1.65+(c/100)*1.55;
 const ovrColor = o => o>=95?"var(--unreal)":o>=88?"var(--good)":o>=78?"var(--brand)":o>=68?"var(--chalk)":"var(--muted)";
 
 /* ============================================================
@@ -766,7 +770,7 @@ let S = null;
 function freshSave(team, color, coach){
   const all = buildAllPlayers();
   return {
-    v:6, cid:"c"+Math.random().toString(36).slice(2,11),
+    v:7, cid:"c"+Math.random().toString(36).slice(2,11),
     team:team||"BLITZ", color:color||COLORS[0], coach:coach||"COACH",
     pts:0, rp:0, wins:0, losses:0,
     owned: all, lineup:[null,null,null,null,null,null,null,null,null,null,null],
@@ -1349,6 +1353,9 @@ function newPlay(){
     p:L[i+1], kind:(i===4?"RB":"WR"), back:backs[i],
     pts:[], wp:0, hold:false, spd:spdYds(L[i+1].spd), start:starts[i]}));
   layRoutes();
+  /* layRoutes also sets starting positions, so run it then blank the lines --
+     nothing is drawn until the coach actually picks something. */
+  G.picked=null; G.wrs.forEach(w=>w.pts=[]);
   G.ols=[-8,-4,0,4,8].map((o,i)=>{
     const lp = L[6+i] || L[1];
     return {fx:26.65+o, fy:G.los+0.6, vx:0, vy:0, kind:"OL", p:lp,
@@ -1585,6 +1592,13 @@ function tick(dt){
 }
 
 /* ---------- actions ---------- */
+/* Picking a play lays its routes on the field and stops there. The second
+   tap on the same play is the snap, so you get a look before the ball moves. */
+function selectPlay(i){
+  if(G.phase!=="PRESNAP"||G.over) return;
+  if(G.picked===i){ snap(i); return; }
+  G.picked=i; G.play=PLAYBOOK[i]; layRoutes(); bump(); renderDeck();
+}
 function snap(i){
   if(G.phase!=="PRESNAP"||G.over) return;
   G.play=PLAYBOOK[i]; layRoutes();
@@ -1618,7 +1632,7 @@ function resolveCatch(){
   G.wrs.forEach(w=>{ const d=dist(w,pt); if(d<bw){bw=d;bestW=w;} });
   defenders().forEach(d=>{ const q=dist(d,pt); if(q<bd){bd=q;bestD=d;} });
   const catchR = bestW ? cthRadius(bestW.p.cth) : 0;
-  if(bestD && bd<1.5 && bd<bw-0.2){
+  if(bestD && bd<1.8 && bd<bw-0.05){
     G.ball=null; G.stats.int++; flash("INTERCEPTED",true);
     endPlay(G.los,"INTERCEPTED",true,"int"); return;
   }
@@ -1694,10 +1708,21 @@ function buildEvent(){
 function scoreSession(ev){
   const s=G.sess; if(!s) return;
   s.plays++;
-  if(ev.caught){ s.cmp++; s.streak++; s.yds += Math.max(0, ev.yards); }
-  else if(ev.type==="incomplete"||ev.type==="int") s.streak=0;
+  const g = ev.yards||0, lost = ev.type==="int";
+  /* yards are yards -- a scramble counts the same as a completion */
+  if(!lost) s.yds += Math.max(0, g);
+  if(ev.caught){ s.cmp++; s.streak++; }
+  else if(ev.type==="incomplete"||lost) s.streak=0;
+  if(!lost && g>=10){ s.chain10++; s.big10++; } else s.chain10=0;
+  if(!lost && g>=20) s.big20++;
+  if(!lost && g>=30) s.big30++;
   if(ev.type==="td") s.tds++;
-  if(ev.type==="int") s.ints++;
+  if(lost){
+    s.ints++;
+    const fine=Math.min(S.pts, INT_COST);
+    S.pts-=fine; save();
+    toast(fine>0 ? "Picked off. <b>-"+fine+"</b> points" : "Picked off.");
+  }
   // award challenges
   let earned=0, names=[];
   CHALLENGES.forEach(c=>{
@@ -1844,7 +1869,7 @@ function baseStart(mode){
   G.us=0; G.them=0; G.qtr=1; G.clock=120;
   G.down=1; G.toGo=10; G.los=35;
   G.stats={att:0,cmp:0,yds:0,td:0,int:0,sack:0};
-  G.sess={plays:0,cmp:0,yds:0,tds:0,ints:0,streak:0,t:0};
+  G.sess={plays:0,cmp:0,yds:0,tds:0,ints:0,streak:0,t:0,big10:0,big20:0,big30:0,chain10:0};
   rerollStreaky(); revealStarters(); save();
   G.play=PLAYBOOK[0];
   if(S && S.view) VIEW=S.view;
@@ -2180,15 +2205,19 @@ function renderDeck(){
   const el=$("#deck");
   if(G.phase==="PRESNAP"){
     const plays=PLAYBOOK.map((p,i)=>
-      '<button class="play" data-play="'+i+'" type="button"><span class="k">'+(i+1)+'</span>'+
-      '<span><span class="nm">'+p.name+'</span><br><span class="ds">'+p.desc+'</span></span></button>').join("");
+      '<button class="play'+(G.picked===i?" picked":"")+'" data-play="'+i+'" type="button"><span class="k">'+(i+1)+'</span>'+
+      '<span><span class="nm">'+p.name+'</span><br><span class="ds">'+
+      (G.picked===i ? "Again to snap" : p.desc)+'</span></span></button>').join("");
+    const pickHint = G.picked==null
+      ? '<p class="hint" style="color:var(--dim)">Pick a play to see the routes.</p>'
+      : '<p class="hint"><b>'+PLAYBOOK[G.picked].name+'</b> is on the field \u2014 tap it again to snap.</p>';
     const fgDist=Math.round((GOAL_THEM-G.los)+17);
     const special = (G.down===4 && G.mode!=="DRILL")
       ? '<div class="special"><button class="btn" id="bPunt" type="button">Punt</button>'+
         (fgDist<=58?'<button class="btn" id="bFG" type="button">Field goal ('+fgDist+')</button>':'')+'</div>' : '';
-    el.innerHTML='<div class="plays">'+plays+'</div>'+special;
+    el.innerHTML='<div class="plays">'+plays+'</div>'+pickHint+special;
     /* keep the controller visible but quiet while a play is being picked */
-    el.querySelectorAll(".play").forEach(b=>b.addEventListener("click",()=>snap(+b.dataset.play)));
+    el.querySelectorAll(".play").forEach(b=>b.addEventListener("click",()=>selectPlay(+b.dataset.play)));
     const bp=$("#bPunt"); if(bp) bp.addEventListener("click",punt);
     const bf=$("#bFG"); if(bf) bf.addEventListener("click",fieldGoal);
   } else if(G.phase==="LIVE"){
@@ -2264,7 +2293,7 @@ window.addEventListener("keydown",e=>{
   if($("#veil").classList.contains("on")) return;
   if(!$("#s-game").classList.contains("on")) return;
   if(e.target && e.target.tagName==="INPUT") return;
-  if(G.phase==="PRESNAP" && ["1","2","3","4","5"].includes(k)) snap(+k-1);
+  if(G.phase==="PRESNAP" && ["1","2","3","4","5"].includes(k)) selectPlay(+k-1);
   else if(G.phase==="LIVE"){
     if(["1","2","3","4","5"].includes(k)) throwAt(G.wrs[+k-1]);
     else if(k===" " && G.hasAim) throwTo(G.aim.fx,G.aim.fy);
@@ -2424,6 +2453,13 @@ function boot(){
       S = Object.assign(freshSave(keep.team, keep.color, keep.coach), keep, {v:6});
       lsSet("save", JSON.stringify(S));
       setTimeout(()=>toast("<b>New lineup</b> — QB, 4 WR, RB, 5 OL"), 800);
+    }
+    if((S.v||1) < 7){
+      /* the challenge list was rebuilt around yardage and touchdowns, so the
+         old ids mean nothing now -- clear them rather than show them done. */
+      S.done = {}; S.unlockShown = false; S.v = 7;
+      lsSet("save", JSON.stringify(S));
+      setTimeout(()=>toast("<b>New challenges</b> — 20 fresh ones, all about yards"), 800);
     }
     if(S.view) VIEW=S.view;
     paintHome(); show("#s-home");
