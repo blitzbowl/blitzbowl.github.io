@@ -26,7 +26,11 @@ the Express server exists only so Railway has something to boot.
 `.github/workflows/pages.yml` uploads `public/` on every push to `main`. The repo is
 public because Pages on a private repo needs a paid plan.
 
-    https://grantsather.github.io/blitz-bowl/
+It lives in the `blitzbowl` org rather than a personal account, and is named
+`blitzbowl.github.io` so Pages serves it from the root — that's what keeps a
+username out of the URL. Renaming the repo would move the site to a subpath.
+
+    https://blitzbowl.github.io/
 
 There's no server on Pages, so `public/config.js` carries the Supabase URL and anon
 key as a committed file. It's loaded as `config.js?v=N` — Pages serves everything
@@ -53,8 +57,8 @@ Networking**.
 ## Working on it in Claude Code
 
 ```bash
-git clone git@github.com:<you>/blitz-bowl.git
-cd blitz-bowl
+git clone git@github.com:blitzbowl/blitzbowl.github.io.git
+cd blitzbowl.github.io
 claude
 ```
 
