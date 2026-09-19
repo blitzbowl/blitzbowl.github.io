@@ -9,8 +9,8 @@
    file runs in both places. */
 (function () {
   var cfg = {
-    supabaseUrl: "",
-    supabaseAnonKey: ""
+    supabaseUrl: "https://bkijvhinhblbqhrjyrcb.supabase.co",
+    supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJraWp2aGluaGJsYnFocmp5cmNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3ODAzNTQsImV4cCI6MjEwMDM1NjM1NH0.pEoTRj1E-iT1Y1St5G7ZX-szBA9FuG6uphxUjOpdJxo"
   };
   if (cfg.supabaseUrl && cfg.supabaseAnonKey) window.BB_CONFIG = cfg;
 })();
