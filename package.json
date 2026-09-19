@@ -1,0 +1,12 @@
+{
+  "name": "blitz-bowl",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pocket-passing football game. Static single-page build.",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": { "express": "^4.21.2" }
+}
