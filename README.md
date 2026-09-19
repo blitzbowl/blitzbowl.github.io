@@ -70,8 +70,10 @@ Everything lives in one file, so point Claude at the section you want:
 | Routes (go, post, slant, drag, wheel…) | `const ROUTES = {` |
 | The five plays and their route assignments | `const PLAYBOOK = [` |
 | The 20 challenges and their point values | `const CHALLENGES = [` |
+| What an interception costs you | `const INT_COST` |
 | Rank tiers and bot difficulty per tier | `const TIERS` / `const DIFF` |
 | Speeds, pocket time, tackle radius | `const T = {` |
+| Catch radius, throw accuracy | `cthRadius` / `accScatter` |
 | Camera — top-down vs the angled side view | `function P(` and `const SIDE =` |
 | Player figure drawing | `function figure(` |
 | On-screen controller (stick, sprint, skill, hurdle) | search `paintPad` |
