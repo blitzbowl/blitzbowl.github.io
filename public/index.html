@@ -32,6 +32,8 @@
   }
   *{box-sizing:border-box}
   html,body{height:100%}
+  /* phone browser chrome steals height from 100%; dvh is the real visible box */
+  @supports (height:100dvh){ html,body{height:100dvh} }
   body{
     margin:0; background:var(--night); color:var(--chalk);
     font-family:"Barlow","Helvetica Neue",Arial,sans-serif;
@@ -316,13 +318,30 @@
   .msg .txt{font-size:13.5px; line-height:1.4; white-space:pre-wrap; overflow-wrap:anywhere}
   .msg .at{font-size:10.5px; color:var(--dim); margin-top:3px}
   .chatbar{display:flex; gap:8px; align-items:center; padding:10px 0 14px; border-top:1px solid var(--edge)}
+  /* --kb is however much of the viewport the keyboard is covering */
+  #s-chat{padding-bottom:var(--kb,0px); transition:padding-bottom .18s}
   .chatbar input[type=text]{flex:1; text-transform:none; letter-spacing:0;
     font-family:"Barlow","Helvetica Neue",Arial,sans-serif; font-weight:400; font-size:16px}
   .chatbar .btn{flex:0 0 auto}
   .online-dot{display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--good); margin-right:5px}
 
   @media (max-width:430px){
-    .plays{grid-template-columns:1fr}
+    /* two columns, not one: the play list was eating 40% of a phone screen
+       and squeezing the field right when you most want to see the routes */
+    .plays{grid-template-columns:repeat(2,1fr); gap:6px}
+    .play{padding:7px 8px; gap:7px}
+    .play .nm{font-size:13.5px}
+    .play .ds{font-size:10.5px; line-height:1.15;
+      display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+    .play .k{width:17px; height:17px; font-size:11px}
+    .deck{min-height:0; gap:5px}
+    .hint{font-size:12px}
+    /* thumbs, not cursors */
+    .btn{min-height:42px}
+    .btn.sm{min-height:36px; padding:7px 11px}
+    .topbar h2{font-size:17px}
+    .tile{padding:12px 11px}
+    .chatbar .btn{min-height:42px}
     .stick{width:100px; height:100px; margin:-50px 0 0 -50px}
     .knob{width:46px; height:46px; margin:-23px 0 0 -23px}
     .acts{width:132px; height:136px}
@@ -330,6 +349,21 @@
     #bSkill{right:72px; bottom:12px; width:58px; height:58px}
     #bHurdle{right:14px; bottom:72px; width:58px; height:58px}
     .acts button{font-size:9px}
+  }
+  /* Phone on its side: the screen is all width and no height, so the play list
+     goes to a single row of five and the app stops being letterboxed to 580px.
+     Otherwise the deck eats more of the screen than the field does. */
+  @media (orientation:landscape) and (max-height:520px){
+    #app{max-width:none}
+    .plays{grid-template-columns:repeat(5,1fr); gap:5px}
+    .play{padding:5px 7px; gap:6px}
+    .play .nm{font-size:12px; line-height:1.1}
+    .play .ds{display:none}
+    .play .k{width:16px; height:16px; font-size:10px}
+    .deck{min-height:0; gap:3px}
+    .hint{font-size:11px}
+    .topbar{padding-block:6px 0}
+    .tiles{grid-template-columns:repeat(3,1fr)}
   }
   @media (prefers-reduced-motion:reduce){ *{animation-duration:.001ms !important; transition-duration:.001ms !important} }
 </style>
@@ -1119,6 +1153,10 @@ $("#chatJoin").addEventListener("click", ()=>chatJoin($("#chatCode").value));
 $("#chatCode").addEventListener("keydown", e=>{ if(e.key==="Enter") chatJoin($("#chatCode").value); });
 $("#chatLeave").addEventListener("click", chatLeaveRoom);
 $("#chatSend").addEventListener("click", chatSend);
+$("#chatMsg").addEventListener("focus", ()=>{
+  /* the keyboard opening shrinks the log; keep the newest message in view */
+  setTimeout(()=>{ const l=$("#chatLog"); if(l) l.scrollTop=l.scrollHeight; }, 250);
+});
 $("#chatMsg").addEventListener("keydown", e=>{
   if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); chatSend(); }
 });
@@ -1309,15 +1347,46 @@ function visLen(){
 function unitAt(k){ return VIEW==="TOP" ? scale*0.40 : H*0.0105*k; }
 
 function resize(){
-  const r=cv.parentElement.getBoundingClientRect();
+  /* measure the canvas, not .stage -- the stage has a 1px border, so its rect is
+     2px taller and wider than the canvas that fills it, and sizing the backing
+     store off it stretched every frame by ~0.4% and clipped the edges. */
+  const r=cv.getBoundingClientRect();
+  /* screen is hidden (or mid-transition) -- keep the last good size rather than
+     collapsing the backing store */
+  if(r.width<2 || r.height<2) return;
   dpr=Math.min(window.devicePixelRatio||1,2);
-  W=Math.max(200,r.width); H=Math.max(200,r.height);
+  /* No floor here. Clamping the backing store to a minimum while the element is
+     genuinely smaller desyncs the two and squashes the field -- which is exactly
+     what a phone in landscape hits. */
+  W=r.width; H=r.height;
   cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
   ctx.setTransform(dpr,0,0,dpr,0,0);
   scale=Math.min(W/44, H/30);
   resetStick();
 }
 window.addEventListener("resize",resize);
+/* The deck grows and shrinks between phases -- five play cards at PRESNAP, two
+   lines of hint when live -- which resizes the stage without firing a window
+   resize. Without this the canvas keeps a stale backing store and the field is
+   drawn into a box the wrong height. Worst on a phone, where the deck is a much
+   bigger slice of the screen. */
+if(window.ResizeObserver){
+  const ro=new ResizeObserver(()=>resize());
+  try{ ro.observe(cv.parentElement); }catch(e){}
+}
+
+/* Keep the chat composer above the on-screen keyboard. visualViewport shrinks
+   when the keyboard opens; window.innerHeight does not. */
+function syncKeyboard(){
+  const vv=window.visualViewport;
+  const hidden = vv ? Math.max(0, window.innerHeight - vv.height - vv.offsetTop) : 0;
+  document.documentElement.style.setProperty("--kb", Math.round(hidden)+"px");
+}
+if(window.visualViewport){
+  visualViewport.addEventListener("resize", syncKeyboard);
+  visualViewport.addEventListener("scroll", syncKeyboard);
+}
+syncKeyboard();
 
 const G={
   mode:"DRILL", phase:"OFF", diff:DIFF[0],

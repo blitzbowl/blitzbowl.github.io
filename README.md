@@ -203,6 +203,38 @@ take that escape hatch away from the easiest difficulty.
 
 ---
 
+## Mobile
+
+Phone is the primary target. Three sizing bugs were fixed to get there, all of which
+also affected desktop, just less visibly:
+
+- **`resize()` measured `cv.parentElement`.** `.stage` has a 1px border, so its rect
+  is 2px bigger than the canvas inside it. Every frame was drawn ~0.4% too large and
+  clipped at the edges. It measures the canvas itself now.
+- **`resize()` only ran on `window.resize`.** The deck changes height between phases
+  -- five play cards at PRESNAP, two lines of hint when live -- which resizes the
+  stage without any window resize. The canvas kept a stale backing store and drew the
+  field into a box the wrong height. A `ResizeObserver` on the stage handles it.
+- **`W`/`H` were floored at 200.** Applied to the backing store, so any viewport where
+  the stage is under 200px tall drew a 200-tall field into a shorter box. That is
+  exactly a phone in landscape. The floor is gone; a degenerate (hidden) box now just
+  skips the resize instead.
+
+Layout:
+
+- `100dvh` under `@supports`, because `100%` includes the phone browser's chrome.
+- Portrait under 430px: plays go to **two** columns, not one. One column ate 40% of the
+  screen right when you most want to see the routes. Field went 432px -> 540px.
+- Landscape under 520px tall: plays go to a single row of five, `#app` drops its 580px
+  cap, home tiles go 3-up. Field went 113px -> 261px.
+- `--kb` tracks how much of the viewport the on-screen keyboard covers (via
+  `visualViewport`, which shrinks when `window.innerHeight` does not) and pads
+  `#s-chat` by it, so the composer never ends up under the keyboard.
+- Buttons get a 42px min-height on phones; text inputs are already 16px, which is what
+  stops iOS zooming on focus.
+
+---
+
 ## Saves
 
 Progress lives in `localStorage` under `pg_save` — team, colors, roster, lineup,
