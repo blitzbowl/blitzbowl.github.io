@@ -29,7 +29,10 @@ public because Pages on a private repo needs a paid plan.
     https://grantsather.github.io/blitz-bowl/
 
 There's no server on Pages, so `public/config.js` carries the Supabase URL and anon
-key as a committed file. That's fine: the anon key is a publishable key, and the chat
+key as a committed file. It's loaded as `config.js?v=N` — Pages serves everything
+with `max-age=600`, so without the version a returning player could pair a fresh
+`index.html` with a ten-minute-old config. **Bump the `v` in `index.html` whenever
+you change `config.js`.** That's fine: the anon key is a publishable key, and the chat
 tables grant it nothing directly (see **Team chat** below).
 
 ### Railway (still wired, unused)
