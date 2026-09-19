@@ -832,7 +832,7 @@ async function initBackend(){
       }
     }catch(e){}
   }
-  if(S) pushProfile();
+  if(S){ pushProfile(); paintHome(); }   // backend settles after first paint
   refreshLeaderboard();
 }
 const beOnline = () => BE.kind !== "none";
